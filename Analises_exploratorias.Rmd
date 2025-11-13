@@ -25,7 +25,7 @@ Aqui iremos primeiro acessar o Google Docs no endereço que está no Moodle [ou 
 ```{r}
 
 # Usar a função read.csv para fazer a importação
-dados <- read.csv("Banco de dados biologicos - DarwinCore.csv")
+dados <- read.csv("Banco de dados biológicos - DarwinCore.csv")
 View(dados)
 ```
 
@@ -97,7 +97,7 @@ Agora vamos relacionar a área foliar com as condições de luz, que pode respon
 dados$lightCondition <- gsub("Plena Luz", "Plena luz", dados$lightCondition)
 
 # Preparando o gráfico do tipo boxplot
-ggplot(data=dados, aes(lightCondition, leafArea)) +
+ggplot(data=subset(dados, lightCondition != ""), aes(lightCondition, leafArea)) +
   geom_boxplot() +
   labs(x="Luminosidade", y="Area foliar (cm)") +
   theme_bw() + 
@@ -109,7 +109,7 @@ Uma alternativa é um gráfico de violino, feito com uma pequena modificação n
 ```{r}
 
 # Preparando o gráfico do tipo violino
-ggplot(data=dados, aes(lightCondition, leafArea)) +
+ggplot(data=subset(dados, lightCondition != ""), aes(lightCondition, leafArea)) +
   geom_violin() +
   labs(x="Luminosidade", y="Area foliar (cm)") +
   theme_bw() + 
@@ -135,10 +135,12 @@ Vamos usar o pacote `pander` e o pacote `visreg` para explorar os resultados. O 
 # install.packages("pander")
 
 # se necessário, instalar antes!
-# library(pander)
+library(pander)
 
 # Criando uma tabela com o resultado estatístico
-# pander(regressao.comp.larg)
+pander(regressao.comp.larg)
+
+
 ```
 
 ```{r}
