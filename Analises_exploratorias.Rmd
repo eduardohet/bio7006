@@ -1,0 +1,205 @@
+---
+title: "Análise exploratória de dados"
+author: "Eduardo Giehl"
+date: "`r Sys.Date()`"
+output:
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Contextualização
+
+Neste roteiro vamos usar documentos do tipo Rmd para realizar etapas de processamento de dados, análises exploratórias por meio de gráficos e complementação com análises estatísticas.
+
+## Documentos do tipo Rmd
+
+Este tipo de documento é bem interessante para fazer uma mistura de anotação detalhada e/ou relato do processamento e análise de dados com o R. Ele permite criar um documento com formatação, que pode ser exportado para formatos como HTML, DOC [Word ou outros processadores de texto] ou PDF. As saídas dos blocos de script do R são inseridos no documento, como gráficos ou resultados descritivos de análises.
+
+## Importação de dados
+
+Aqui iremos primeiro acessar o Google Docs no endereço que está no Moodle [ou acessar [nesse link](https://docs.google.com/spreadsheets/d/1u_AsBob9HU1r8M8oKzzuQIuLeOVIU0HgjQTikQpzC3k/edit?gid=534560379#gid=534560379)] e ir no Menu Arquivo \> Baixar a aba Darwin Core da planilha no formato \*.csv (valores separados por vírgulas).
+
+```{r}
+
+# Usar a função read.csv para fazer a importação
+dados <- read.csv("Banco de dados biologicos - DarwinCore.csv")
+View(dados)
+```
+
+## Corrigindo os dados
+
+Os dados de comprimento e largura foliar vieram com vírgula como separador decimal. Vamos corrigir no R, com o script abaixo.
+
+```{r}
+
+# Localizar e subsituir vírgula por ponto
+dados$leafWidth <- gsub(",", ".", dados$leafWidth, fixed=TRUE)
+dados$leafLength <- gsub(",", ".", dados$leafLength, fixed=TRUE)
+# Convertendo de texto para numérico
+dados$leafWidth <- as.numeric(dados$leafWidth)
+dados$leafLength <- as.numeric(dados$leafLength)
+```
+
+## Gráfico entre comprimento e largura
+
+Vamos criar um gráfico com as duas informações sobre as folhas.
+
+```{r fig.width=12, fig.height=5}
+
+library(ggplot2)
+
+# Primeiro gráfico sem info das espécies
+ggplot(data=dados, aes(x=leafLength, y=leafWidth)) + 
+  geom_point() +
+  theme_bw()
+
+# Segundo gráfico com info das espécies
+ggplot(data=dados, aes(x=leafLength, y=leafWidth)) + 
+  geom_point(aes(col=scientificName)) +
+  theme_bw()
+```
+
+Vamos agora incluir uma relação alométrica potencial entre as duas medidas. Isso pode ser feito com a adição do comando geom_smooth ao gráfico.
+
+```{r fig.width=12, fig.height=5}
+
+# Terceiro gráfico com info das espécies 
+ggplot(data=dados, aes(x=leafLength, y=leafWidth)) + 
+  geom_point(aes(col=scientificName)) +
+  geom_smooth(method="lm") +
+  labs(x="Comprimento foliar (cm)", y="Largura foliar (cm)") +
+  theme_bw()
+```
+
+Calculando a área foliar com base na fórmula da elipse e fazendo um gráfico da área foliar por espécie.
+
+```{r fig.width=8, fig.height=5}
+
+# Calculando a área foliar com a fórmula da área da elipse. Resultado em cm²
+dados$leafArea <- pi * dados$leafLength * dados$leafWidth
+
+# Preparando o gráfico
+ggplot(data=dados, aes(scientificName, leafArea)) +
+  geom_boxplot() +
+  labs(x="", y="Área foliar (cm²)") +
+  theme_bw() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+Agora vamos relacionar a área foliar com as condições de luz, que pode responder a uma pergunta bem mais interessante, que é se plantas de sombra ou de sol tem área foliar selecionada de acordo com o hábitat.
+
+```{r}
+
+# Alguns dados de plena luz foram registrados de forma diferente. Corrigindo
+dados$lightCondition <- gsub("Plena Luz", "Plena luz", dados$lightCondition)
+
+# Preparando o gráfico do tipo boxplot
+ggplot(data=dados, aes(lightCondition, leafArea)) +
+  geom_boxplot() +
+  labs(x="Luminosidade", y="Area foliar (cm)") +
+  theme_bw() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+Uma alternativa é um gráfico de violino, feito com uma pequena modificação nos comandos anteriores.
+
+```{r}
+
+# Preparando o gráfico do tipo violino
+ggplot(data=dados, aes(lightCondition, leafArea)) +
+  geom_violin() +
+  labs(x="Luminosidade", y="Area foliar (cm)") +
+  theme_bw() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Análises estatísticas
+
+Podemos incluir análises em nossos roteiros e também criar versões "finais" de nossos gráficos com informações validadas por nossas análises. Por exemplo, no caso da nossa primeira análise exploratória gráfica, onde relacionamos comprimento e largura foliar, havia o pressuposto de existir uma relação alométrica entre os dois valores. Isso pode ser representado por uma reta ascendente em nosso gráfico, cujo ajuste e adequação aos dados pode ser testada com uma análise de regressão linear simples. Vamos aplicar a análise e explorar os resultados abaixo.
+
+```{r}
+
+
+regressao.comp.larg <- lm(leafWidth ~ leafLength, data=dados)
+summary(regressao.comp.larg)
+
+```
+
+Vamos usar o pacote `pander` e o pacote `visreg` para explorar os resultados. O pacote `pander` é uma das muitas opções para gerar tabelas com os resultados de testes estatísticos. Já o pacote `visreg` é um grande aliado para representar os resultados graficamente.
+
+```{r}
+
+# install.packages("pander")
+
+# se necessário, instalar antes!
+# library(pander)
+
+# Criando uma tabela com o resultado estatístico
+# pander(regressao.comp.larg)
+```
+
+```{r}
+
+# se necessário, instalar antes!
+library(visreg)
+
+# Criando um gráfico com a reta ajustada da relação entre as variáveis
+visreg(regressao.comp.larg)
+```
+
+Agora, uma versão mais definitiva da figura:
+
+```{r}
+
+p <- visreg(regressao.comp.larg, scale="response", rug=F, 
+  xlab="Comprimento foliar (cm)", 
+  ylab="Largura foliar (cm)",
+  line.par=list(lty=1, col="#666666"), 
+  fill.par=list(alpha=0.5), gg=TRUE)
+
+p + 
+  geom_point(
+    size=2.5, shape = 21, alpha = 0.7, 
+    color = "#1a1a1a", fill="cyan4") +
+  theme_bw()
+```
+
+Em um modelo mais adequado, deveríamos considerar que várias medidas vem da mesma planta ou da mesma espécie. Isso pode ser feito com um modelo misto (LMM), em que parte da variação é atribuída a este tipo de variável, que não é tanto de interesse da pesquisa, mas contribui para explicar as variações nos dados. Variáveis como essas são chamadas de efeitos "aleatórios", embora sua contribuição não seja aleatória, apenas de mais interesse por fazerem parte do delineamento e/ou da forma que os dados foram coletados. Abaixo vamos refazer o modelo considerando esse efeito misto, com a espécie como efeito "aleatório".
+
+```{r}
+
+library(glmmTMB)
+
+lmm.comp.larg <- glmmTMB(leafWidth ~ leafLength + (1 | scientificName), 
+  data=dados, family="gaussian")
+
+summary(lmm.comp.larg)
+```
+
+Embora a representação na forma de tabela fique um pouco mais complicada, a função visreg continua cumprindo com a função original.
+
+```{r}
+
+p <- visreg(lmm.comp.larg, scale="response", rug=F, 
+  xlab="Comprimento foliar (cm)", 
+  ylab="Largura foliar (cm)",
+  line.par=list(lty=1, col="#666666"), 
+  fill.par=list(alpha=0.5), gg=TRUE)
+
+p + 
+  geom_point(
+    size=2.5, shape = 21, alpha = 0.7, 
+    color = "#1a1a1a", fill="cyan4") +
+  theme_bw()
+```
+
+Veja que nossos resultados foram consistentes. Considerando ou não que a coleta foi feita com repetições (5 folhas por indivíduo / espécie), a relação continua existindo. O coeficiente de regressão de 0,4022 (Estimate para a linha leafLength, "summary" do LMM) é bem próximo de 0,45, que seria esperado em uma relação 2:1, isto é, o aumento de 1 cm no comprimento corresponde ao aumento de 0,5 cm na largura. A relação é significativa, com base nos valores de Z = 6,933 e P = 4.12e-12 (esse número do valor de P é beeem pequeno, bem menor que 0,05, o limiar para decidir que a associação entre as duas informações dificilmente se dá por acaso; logo, poderíamos trocar por P \< 0,001, o que é suficiente para mostrar a mesma coisa). Vamos ver abaixo a forma mais adequada de reportar um resultado como esse em um trabalho científico:
+
+> Existe uma relação alométrica entre o comprimento e a largura foliar, com uma razão de aproximadamente 2:1 (beta=0,402; Z = 6,933; P \< 0,001).
+
+## Seção desafio
+
+Agora, tente avaliar se existe relação entre a área foliar (`leafArea`) e as condições de luminosidade (`lightCondition`). Existe a opção de usar a função `aov` ao invés da função `lm` para a tentativa inicial, sem considerar as espécies. A tabela criada com a função `pander` ficará mais semelhante do que é normalmente usado para representar os resultados de uma análise de variância (Anova), embora seja basicamente a mesma análise. Não esqueça de construir uma conclusão biológica com suporte estatístico.
